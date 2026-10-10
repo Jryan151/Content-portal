@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Approval Portal</title>
+    <!-- Importing Supabase via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .video-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+        }
+        .details {
+            margin: 15px 0;
+            font-size: 0.9em;
+            color: #555;
+            flex-grow: 1;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn-approve {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .btn-approve:hover { background-color: #27ae60; }
+        .btn-reject {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .btn-reject:hover { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Content Approval Portal</h1>
+        <p>Review and route generated campaigns.</p>
+    </div>
+
+    <div class="video-grid" id="videoGrid">
+        <!-- Videos will be injected here by JavaScript -->
+    </div>
+
+    <script>
+        // 1. Initialize Supabase - PASTE YOUR URL AND PUBLISHABLE KEY HERE
+        const SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR-PUBLISHABLE-KEY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const videoGrid = document.getElementById('videoGrid');
+
+        // 2. Fetch Pending Videos
+        async function loadPendingVideos() {
+            videoGrid.innerHTML = '<p>Loading pending campaigns...</p>';
+            
+            const { data: videos, error } = await supabase
+                .from('campaigns')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching videos:', error);
+                videoGrid.innerHTML = '<p>Error loading campaigns.</p>';
+                return;
+            }
+
+            if (videos.length === 0) {
+                videoGrid.innerHTML = '<p>No pending campaigns to review.</p>';
+                return;
+            }
+
+            renderVideos(videos);
+        }
+
+        // 3. Render the Video Cards
+        function renderVideos(videos) {
+            videoGrid.innerHTML = '';
+            
+            videos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.id = `card-${video.id}`;
+                
+                card.innerHTML = `
+                    <video controls>
+                        <source src="${video.video_url}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="details">
+                        <strong>Target:</strong> ${video.target_audience}<br>
+                        <strong>Generated:</strong> ${new Date(video.created_at).toLocaleDateString()}
+                    </div>
+                    <div class="actions">
+                        <button class="btn-reject" onclick="updateStatus(${video.id}, 'rejected')">Reject</button>
+                        <button class="btn-approve" onclick="updateStatus(${video.id}, 'approved')">Approve</button>
+                    </div>
+                `;
+                videoGrid.appendChild(card);
+            });
+        }
+
+        // 4. Handle Approvals and Rejections
+        async function updateStatus(videoId, newStatus) {
+            const card = document.getElementById(`card-${videoId}`);
+            card.style.opacity = '0.5';
+            card.style.pointerEvents = 'none';
+
+            const { error } = await supabase
+                .from('campaigns')
+                .update({ status: newStatus })
+                .eq('id', videoId);
+
+            if (error) {
+                console.error(`Failed to mark as ${newStatus}:`, error);
+                alert('Database update failed. Please try again.');
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            } else {
+                card.remove();
+            }
+        }
+
+        // Load videos when the page opens
+        loadPendingVideos();
+    </script>
+</body>
+</html>
