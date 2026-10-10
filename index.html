@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Approval Portal</title>
-    <!-- 1. Import Supabase securely -->
+    <title>Portal V2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
@@ -22,7 +21,7 @@
 <body>
 
     <div class="header">
-        <h1>Content Approval Portal</h1>
+        <h1>Content Approval Portal V2</h1>
         <p>Review and route generated campaigns.</p>
     </div>
 
@@ -31,17 +30,19 @@
     </div>
 
     <script>
-        // ==========================================
-        // 2. SUPABASE INITIALIZATION
-        // ==========================================
+        // 1. GLOBAL ERROR CATCHER (Catches hidden browser crashes)
+        window.onerror = function(msg) {
+            document.getElementById('videoGrid').innerHTML = `<h3 style="color:red;">Fatal Crash: ${msg}</h3><p>Your browser is blocking the Supabase connection.</p>`;
+        };
+
+        // 2. KEYS
         const SUPABASE_URL = 'https://yrhvlrlpdyxgllvshesb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaHZscmxwZHl4Z2xsdnNoZXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MDE5NTQsImV4cCI6MjEwNzE3Nzk1NH0.2HB4QEDU0bl3Jzvsbuq7kzUPc3W5UPpYIFimpGHV8tY';
-        // ==========================================
-
+        
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const videoGrid = document.getElementById('videoGrid');
 
-        // 3. Fetch and Display Videos
+        // 3. FETCH VIDEOS
         async function loadPendingVideos() {
             try {
                 const { data: videos, error } = await supabase
@@ -53,14 +54,12 @@
                 if (error) throw error;
 
                 if (!videos || videos.length === 0) {
-                    videoGrid.innerHTML = '<h3>All caught up! No pending videos.</h3>';
+                    videoGrid.innerHTML = '<h3>All caught up! No pending videos.</h3><p style="color:red;">(If you have videos in your database, Supabase RLS is hiding them from the website.)</p>';
                     return;
                 }
 
-                // Clear the loading text
                 videoGrid.innerHTML = '';
 
-                // Build a card for each video
                 videos.forEach(video => {
                     const card = document.createElement('div');
                     card.className = 'card';
@@ -78,12 +77,11 @@
                 });
 
             } catch (err) {
-                console.error("Supabase Error:", err);
-                videoGrid.innerHTML = `<h3 style="color: red;">Connection Error: ${err.message}</h3><p>Check your RLS settings and API keys.</p>`;
+                videoGrid.innerHTML = `<h3 style="color: red;">Database Error: ${err.message}</h3>`;
             }
         }
 
-        // 4. Handle Approvals/Rejections
+        // 4. UPDATE DATABASE
         async function updateStatus(videoId, newStatus, buttonElement) {
             const card = buttonElement.closest('.card');
             card.style.opacity = '0.5';
@@ -96,8 +94,6 @@
                     .eq('id', videoId);
 
                 if (error) throw error;
-                
-                // Remove the card visually if successful
                 card.remove();
 
                 if (videoGrid.children.length === 0) {
@@ -105,13 +101,12 @@
                 }
 
             } catch (err) {
-                alert('Database update failed. Check console for details.');
+                alert('Database update failed.');
                 card.style.opacity = '1';
                 card.style.pointerEvents = 'auto';
             }
         }
 
-        // 5. Start the script immediately
         loadPendingVideos();
     </script>
 </body>
