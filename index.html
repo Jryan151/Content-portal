@@ -3,74 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal V4</title>
+    <title>Content Approval Portal</title>
     
-    <!-- SCRIPT 1: The Isolated Safety Net -->
     <script>
         window.onerror = function(msg, url, line) {
-            document.getElementById('grid').innerHTML = `<h3 style="color:red;">Error on line ${line}:<br>${msg}</h3><p>If this says 'SyntaxError', your iPad likely changed standard quotes into curly 'smart quotes' when you pasted the code.</p>`;
+            document.getElementById('grid').innerHTML = `<h3 style="color:#ff6b6b; padding: 20px;">Error on line ${line}:<br>${msg}</h3>`;
             return false;
         };
     </script>
     
-    <!-- SCRIPT 2: Supabase Tool -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
-        .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: left; }
-        video { border-radius: 8px; width: 100%; background: #000; }
-        .btn { flex: 1; padding: 12px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #0b0f19; 
+            color: #ffffff; 
+            padding: 20px; 
+            margin: 0;
+            text-align: left;
+        }
+        .header { 
+            margin-bottom: 25px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid #1e293b; 
+        }
+        .header h1 { font-size: 24px; margin: 0 0 5px 0; font-weight: 700; }
+        .header p { color: #94a3b8; font-size: 14px; margin: 0; }
+        
+        .grid { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        
+        .card { 
+            background: #111827; 
+            border: 1px solid #1f2937; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+        }
+        .card h3 { margin-top: 0; font-size: 16px; color: #e2e8f0; margin-bottom: 15px; }
+        
+        video { width: 100%; border-radius: 8px; background: #000; outline: none; }
+        
+        .actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { 
+            flex: 1; 
+            padding: 12px; 
+            font-weight: 600; 
+            font-size: 14px;
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-approve { background-color: #0d9488; }
+        .btn-reject { background-color: #be123c; }
+        
+        .empty-state {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body>
-    <h1>Content Approval Portal V4</h1>
-    <div id="grid">
-        <h3 id="log">1. HTML Loaded...</h3>
+
+    <div class="header">
+        <h1>Content Approval Portal</h1>
+        <p>Review and route generated campaigns.</p>
     </div>
 
-    <!-- SCRIPT 3: The Main Engine -->
+    <div class="grid" id="grid">
+        <div class="empty-state">
+            <h3 id="log" style="color: #fff; margin:0;">Loading pending campaigns...</h3>
+        </div>
+    </div>
+
     <script>
-        document.getElementById('log').innerText = "2. JavaScript is running!";
-        
         const url = "https://yrhvlrlpdyxgllvshesb.supabase.co";
         const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaHZscmxwZHl4Z2xsdnNoZXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MDE5NTQsImV4cCI6MjEwNzE3Nzk1NH0.2HB4QEDU0bl3Jzvsbuq7kzUPc3W5UPpYIFimpGHV8tY";
-        
-        if (!window.supabase) throw new Error("Supabase tool blocked by Safari content settings.");
         
         const db = window.supabase.createClient(url, key, { auth: { persistSession: false } });
         
         async function loadVideos() {
-            document.getElementById('log').innerText = "3. Fetching database...";
-            const { data, error } = await db.from('campaigns').select('*').eq('status', 'pending');
+            const { data, error } = await db.from('campaigns').select('*').eq('status', 'pending').order('created_at', { ascending: false });
             
             if (error) throw new Error(error.message);
+            
+            const grid = document.getElementById('grid');
+
             if (!data || data.length === 0) {
-                document.getElementById('grid').innerHTML = '<h3>All caught up! No pending videos.</h3>';
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>All caught up!</h3>
+                        <p style="margin: 8px 0 0 0; font-size: 13px;">No pending videos to review right now.</p>
+                    </div>`;
                 return;
             }
 
-            document.getElementById('grid').innerHTML = ''; 
+            grid.innerHTML = ''; 
             data.forEach(v => {
-                document.getElementById('grid').innerHTML += `
+                grid.innerHTML += `
                     <div class="card">
                         <h3>Target: ${v.target_audience}</h3>
-                        <video controls><source src="${v.video_url}" type="video/mp4"></video>
-                        <div style="display:flex; gap:10px; margin-top:15px;">
-                            <button class="btn" style="background:#2e7d32;" onclick="updateStatus(${v.id}, 'approved')">Approve</button>
-                            <button class="btn" style="background:#c62828;" onclick="updateStatus(${v.id}, 'rejected')">Reject</button>
+                        <video controls playsinline><source src="${v.video_url}" type="video/mp4"></video>
+                        <div class="actions">
+                            <button class="btn btn-approve" onclick="updateStatus(${v.id}, 'approved', this)">Approve</button>
+                            <button class="btn btn-reject" onclick="updateStatus(${v.id}, 'rejected', this)">Reject</button>
                         </div>
                     </div>
                 `;
             });
         }
         
-        async function updateStatus(id, newStatus) {
+        async function updateStatus(id, newStatus, btn) {
+            const card = btn.closest('.card');
+            card.style.opacity = '0.4';
+            card.style.pointerEvents = 'none';
+
             try {
                 await db.from('campaigns').update({ status: newStatus }).eq('id', id);
                 loadVideos(); 
             } catch(e) {
                 alert("Update failed: " + e.message);
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
             }
         }
 
