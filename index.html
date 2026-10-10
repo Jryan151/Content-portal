@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal V2</title>
+    <title>Portal V3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
@@ -21,30 +21,41 @@
 <body>
 
     <div class="header">
-        <h1>Content Approval Portal V2</h1>
+        <h1>Content Approval Portal V3</h1>
         <p>Review and route generated campaigns.</p>
     </div>
 
     <div class="video-grid" id="videoGrid">
-        <p id="loadingText">Loading pending campaigns...</p>
+        <h3 id="loadingText">1. Starting script...</h3>
     </div>
 
     <script>
-        // 1. GLOBAL ERROR CATCHER (Catches hidden browser crashes)
+        const log = (msg) => document.getElementById('loadingText').innerText = msg;
+
+        // Catch any hidden browser crashes
         window.onerror = function(msg) {
-            document.getElementById('videoGrid').innerHTML = `<h3 style="color:red;">Fatal Crash: ${msg}</h3><p>Your browser is blocking the Supabase connection.</p>`;
+            document.getElementById('videoGrid').innerHTML = `<h3 style="color:red;">Crash: ${msg}</h3>`;
+        };
+        window.onunhandledrejection = function(e) {
+            document.getElementById('videoGrid').innerHTML = `<h3 style="color:red;">Async Crash: ${e.reason}</h3>`;
         };
 
-        // 2. KEYS
+        log("2. Initializing Database...");
+
         const SUPABASE_URL = 'https://yrhvlrlpdyxgllvshesb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaHZscmxwZHl4Z2xsdnNoZXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MDE5NTQsImV4cCI6MjEwNzE3Nzk1NH0.2HB4QEDU0bl3Jzvsbuq7kzUPc3W5UPpYIFimpGHV8tY';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // FIX: Disables local storage so Private Tabs don't freeze the connection
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: false }
+        });
+        
         const videoGrid = document.getElementById('videoGrid');
 
-        // 3. FETCH VIDEOS
         async function loadPendingVideos() {
             try {
+                log("3. Fetching videos...");
+                
                 const { data: videos, error } = await supabase
                     .from('campaigns')
                     .select('*')
@@ -58,6 +69,7 @@
                     return;
                 }
 
+                log("4. Loading videos to screen...");
                 videoGrid.innerHTML = '';
 
                 videos.forEach(video => {
@@ -81,7 +93,6 @@
             }
         }
 
-        // 4. UPDATE DATABASE
         async function updateStatus(videoId, newStatus, buttonElement) {
             const card = buttonElement.closest('.card');
             card.style.opacity = '0.5';
